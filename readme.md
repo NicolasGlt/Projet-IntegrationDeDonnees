@@ -10,7 +10,7 @@
 
 <br>
 <B>1. Téléchargement des données (Bronze)</B>
-Télécharger le fichier brut OpenFoodFacts : **en.openfoodfacts.org.products.csv**
+Télécharger le fichier brut OpenFoodFacts : en.openfoodfacts.org.products.csv
 Ce fichier constitue la couche Bronze : données brutes, non nettoyées, potentiellement incohérentes.
 
 <br>

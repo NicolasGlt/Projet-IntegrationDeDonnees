@@ -10,18 +10,19 @@
 
 <br>
 <B>1. Téléchargement des données (Bronze)</B>
-Télécharger le fichier brut OpenFoodFacts : en.openfoodfacts.org.products.csv
+
+Télécharger le fichier brut OpenFoodFacts : en.openfoodfacts.org.products.csv<br>
 Ce fichier constitue la couche Bronze : données brutes, non nettoyées, potentiellement incohérentes.
 
 <br>
 <B>2. Nettoyage & Préparation (Silver)</B>
 La couche Silver consiste à :
-- nettoyer les valeurs manquantes
-- supprimer les lignes invalides
-- formater dates/nombres/catégories
-- sélectionner les colonnes pertinentes
-- produire un fichier Parquet propre
-Ce traitement utilise PySpark, dans un environnement Linux/WSL.
+- nettoyer les valeurs manquantes<br>
+- supprimer les lignes invalides<br>
+- formater dates/nombres/catégories<br>
+- sélectionner les colonnes pertinentes<br>
+- produire un fichier Parquet propre<br><br>
+Ce traitement utilise PySpark, dans un environnement Linux/WSL.<br><br>
 
 <br>
 <B>2.1 — Pourquoi Spark sous Linux plutôt que Windows ?</B>

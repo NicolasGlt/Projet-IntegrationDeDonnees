@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS dim_country (
 -- Produit (SCD2-ready)
 CREATE TABLE IF NOT EXISTS dim_product (
   product_sk           BIGINT PRIMARY KEY,
-  `code`               VARCHAR(64) NOT NULL,   -- code-barres (EAN/GTIN)
+  `code`               VARCHAR(255) NOT NULL,   -- code-barres (EAN/GTIN)
   product_name         VARCHAR(2048) NULL,
   brand_sk             BIGINT NULL,
   primary_category_sk  BIGINT NULL,
@@ -92,9 +92,9 @@ CREATE TABLE IF NOT EXISTS fact_nutrition_snapshot (
   proteins_100g         DOUBLE NULL,
   fiber_100g            DOUBLE NULL,
   sodium_100g           DOUBLE NULL,
-  nutriscore_grade      VARCHAR(8) NULL,   -- a,b,c,d,e
-  nova_group            VARCHAR(8) NULL,   -- 1..4
-  ecoscore_grade        VARCHAR(8) NULL,   -- a..e
+  nutriscore_grade      VARCHAR(32) NULL,   -- a,b,c,d,e
+  nova_group            VARCHAR(32) NULL,   -- 1..4
+  ecoscore_grade        VARCHAR(32) NULL,   -- a..e
   completeness_score    DOUBLE NULL,       -- 0..1
   quality_issues_json   JSON   NULL,
   PRIMARY KEY (product_sk, time_sk),

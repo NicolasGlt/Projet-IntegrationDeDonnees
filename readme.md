@@ -16,11 +16,11 @@ Ce fichier constitue la couche Bronze : données brutes, non nettoyées, potenti
 
 **2. Nettoyage & Préparation (Silver)**
 La couche Silver consiste à :
-✔ nettoyer les valeurs manquantes
-✔ supprimer les lignes invalides
-✔ formater dates/nombres/catégories
-✔ sélectionner les colonnes pertinentes
-✔ produire un fichier Parquet propre
+- nettoyer les valeurs manquantes
+- supprimer les lignes invalides
+- formater dates/nombres/catégories
+- sélectionner les colonnes pertinentes
+- produire un fichier Parquet propre
 Ce traitement utilise PySpark, dans un environnement Linux/WSL.
 
 

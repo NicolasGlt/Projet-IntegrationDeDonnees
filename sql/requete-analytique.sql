@@ -44,20 +44,6 @@ WHERE f.nutriscore_grade IN ('a','b','c','d','e')
 GROUP BY COALESCE(c.category_code, 'inconnu'), f.nutriscore_grade
 ORDER BY category, f.nutriscore_grade;
 
--- 2.1) Version “niveau 2” (si taxonomies chargées) :
-
-SELECT
-  COALESCE(c.category_name_fr, c.category_code, 'inconnu') AS category_lvl2,
-  f.nutriscore_grade,
-  COUNT(*) AS n
-FROM fact_nutrition_snapshot f
-JOIN dim_product   p ON p.product_sk = f.product_sk
-JOIN dim_category  c ON c.category_sk = p.primary_category_sk
-WHERE c.level = 2
-  AND f.nutriscore_grade IN ('a','b','c','d','e')
-GROUP BY COALESCE(c.category_name_fr, c.category_code, 'inconnu'), f.nutriscore_grade
-ORDER BY category_lvl2, f.nutriscore_grade;
-
 
 -- 3) Heatmap pays × catégorie : moyenne sugars_100g
 

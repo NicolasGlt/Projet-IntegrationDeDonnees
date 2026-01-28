@@ -66,7 +66,11 @@ export JAVA_HOME=/usr/lib/jvm/default-java
 <B>2.7 — Lancer le script ETL Silver</B>
 
 Depuis l’environnement virtuel (sur WSL):
-python "/mnt/c/Users/ngrea/Documents/github/Projet Integration de donnees/etl_openfoodfacts.py" --input "/mnt/c/Users/ngrea/Documents/github/en.openfoodfacts.org.products.csv" --outdir "/mnt/c/Users/ngrea/Documents/github/Projet Integration de donnees/out"
+python "/mnt/c/Users/ngrea/Documents/github/Projet Integration de donnees/etl_openfoodfacts.py" \
+  --input "/mnt/c/Users/ngrea/Documents/github/en.openfoodfacts.org.products.csv" \
+  --outdir "/mnt/c/Users/ngrea/Documents/github/Projet Integration de donnees/data_clean" \
+  --inferSchema \
+  --sample_rows 200
 
 Voir etl-openfoodfacts.py
 
@@ -107,7 +111,12 @@ La couche Gold correspond aux données finales, prêtes pour l'analyse.
 <B>4.1 — Lancer le script Gold</B>
 
 Depuis l’environnement virtuel (sur WSL):
-python "/mnt/c/Users/ngrea/Documents/github/Projet Integration de donnees/gold_openfoodfacts.py" --in_parquet "/mnt/c/Users/ngrea/Documents/github/Projet Integration de donnees/out/off_clean.parquet" --mysql_url "jdbc:mysql://127.0.0.1:3306/off_dm" --user projet --password projet --save_mode overwrite
+python "/mnt/c/Users/ngrea/Documents/github/Projet Integration de donnees/gold_openfoodfacts.py" \
+  --in_parquet "/mnt/c/Users/ngrea/Documents/github/Projet Integration de donnees/data_clean/off_clean_v2.parquet" \
+  --mysql_url "jdbc:mysql://127.0.0.1:3306/off_dm" \
+  --user projet \
+  --password projet \
+  --save_mode append
 
 Ce script :
 - lit la couche Silver au format Parquet

@@ -63,7 +63,8 @@
 - **nova_group** : groupe NOVA
 - **ecoscore_grade** : Eco-Score
 - **completeness_score** : score de complétude calculé en couche Silver
-- **quality_issues_json** : champ JSON listant les anomalies détectées sur la ligne
+- **quality_issues_json** : champ JSON listant les anomalies détectées  
+  *(exploité dans la requête BONUS d’analyse de la qualité)*
 - **metrics_json** : métriques techniques associées à la ligne  
-  (ex. indicateurs de qualité, flags de transformation, informations de contrôle)
+  (flags de contrôle, informations de transformation)
 

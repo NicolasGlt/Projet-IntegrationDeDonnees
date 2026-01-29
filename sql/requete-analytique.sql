@@ -114,3 +114,21 @@ WHERE f.completeness_score IS NOT NULL
 GROUP BY t.year, t.iso_week
 HAVING COUNT(*) >= 20
 ORDER BY t.year, t.iso_week;
+
+-- 7) BONUS — Top catégories avec le plus d’anomalies (quality_issues_json non vide)
+SELECT
+  COALESCE(c.category_code, 'inconnu') AS category,
+  COUNT(*) AS n_rows,
+  SUM(CASE WHEN f.quality_issues_json IS NOT NULL AND f.quality_issues_json <> '[]' THEN 1 ELSE 0 END) AS n_with_issues,
+  ROUND(
+    SUM(CASE WHEN f.quality_issues_json IS NOT NULL AND f.quality_issues_json <> '[]' THEN 1 ELSE 0 END)
+    / NULLIF(COUNT(*), 0) * 100, 2
+  ) AS pct_with_issues,
+  ROUND(AVG(f.completeness_score), 3) AS avg_completeness
+FROM fact_nutrition_snapshot f
+JOIN dim_product p ON p.product_sk = f.product_sk
+LEFT JOIN dim_category c ON c.category_sk = p.primary_category_sk
+GROUP BY COALESCE(c.category_code, 'inconnu')
+HAVING COUNT(*) >= 1000
+ORDER BY pct_with_issues DESC, n_rows DESC
+LIMIT 20;

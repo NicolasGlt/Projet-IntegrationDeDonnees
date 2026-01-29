@@ -1,90 +1,92 @@
 # Cahier de Qualité – OpenFoodFacts
 
 ## 1. Objectif
-Ce cahier de qualité décrit les règles de contrôle, de nettoyage et de validation
-appliquées aux données OpenFoodFacts afin de garantir leur fiabilité avant
-chargement dans le DataMart (couche Gold).
+Garantir un niveau de qualité suffisant des données OpenFoodFacts
+pour permettre des analyses nutritionnelles fiables, tout en
+préservant un volume de données exploitable.
 
 ---
 
-## 2. Règles de qualité appliquées
+## 2. Règles de qualité appliquées (couche Silver)
 
 ### 2.1 Unicité
-- **Règle** : un code-barres (`code`) correspond à un seul produit courant.
-- **Problème** : OpenFoodFacts contient plusieurs versions d’un même produit.
-- **Traitement** : dédoublonnage par `code` en conservant la ligne la plus récente
-  (`last_modified_t`).
+- **Règle** : un code-barres (`code`) représente un produit courant.
+- **Problème** : plusieurs versions d’un même produit existent.
+- **Traitement** :
+  - déduplication par `code`
+  - conservation de la ligne la plus récente (`last_modified_t`).
 
 ---
 
 ### 2.2 Complétude
-- **Champs essentiels** :
-  - Nom du produit
-  - Marque
-  - Valeurs nutritionnelles principales
-- **Score calculé** : `completeness_score ∈ [0;1]`
-- **Objectif** : mesurer la qualité globale de chaque ligne sans supprimer trop
-  de données (éviter une perte massive >30%).
+- Les champs suivants sont évalués :
+  - nom du produit
+  - marque
+  - nutriments principaux (sucres, sel, lipides, protéines)
+- Un **score de complétude** (`completeness_score ∈ [0,1]`) est calculé.
+- Aucun seuil éliminatoire n’est appliqué afin d’éviter une perte
+  excessive de données (>30%).
 
 ---
 
-### 2.3 Valeurs aberrantes (bornes)
-| Champ | Borne autorisée |
-|------|-----------------|
-| sugars_100g | 0 à 100 |
-| salt_100g | 0 à 25 |
-| fat_100g | 0 à 100 |
-| proteins_100g | 0 à 100 |
+### 2.3 Valeurs aberrantes
+Les bornes suivantes sont appliquées :
 
-- **Traitement** : valeurs hors bornes mises à `NULL`.
+| Champ | Intervalle autorisé |
+|------|---------------------|
+| sugars_100g | 0 – 100 |
+| salt_100g | 0 – 25 |
+| fat_100g | 0 – 100 |
+| proteins_100g | 0 – 100 |
+
+- Valeurs hors bornes → `NULL`.
 
 ---
 
 ### 2.4 Cohérence sel / sodium
-- **Relation** : `salt_100g ≈ sodium_100g × 2.5`
-- **Traitement** :
-  - sodium manquant → calcul depuis sel
-  - sel manquant → calcul depuis sodium
+- Relation théorique : `salt ≈ sodium × 2.5`
+- Si l’un des deux champs est manquant :
+  - il est recalculé à partir de l’autre.
 
 ---
 
-## 3. Coverage et métriques (Silver)
-
-Les métriques sont générées automatiquement via le fichier `metrics_v2.json`.
-
-### 3.1 Volumétrie
-- Nombre total de lignes lues (Bronze) : voir `rows_total`
-- Nombre de lignes après nettoyage (Silver)
-- Nombre de doublons supprimés
-
-### 3.2 Qualité globale
-- % produits avec code valide
-- % produits avec nutriments principaux
-- Moyenne du `completeness_score`
+### 2.5 Normalisation des champs textuels
+- Passage en minuscules
+- Suppression des valeurs bruitées (`unknown`, `none`, etc.)
+- Canonisation ASCII (suppression accents, caractères spéciaux)
 
 ---
 
-## 4. Anomalies détectées
-Exemples :
-- Produits avec `sugars_100g > 100`
-- Produits avec `salt_100g > 25`
-- Produits sans code-barres
-
-Ces lignes sont soit corrigées, soit conservées avec des valeurs nulles.
+## 3. Métriques de qualité
+Les métriques sont générées automatiquement dans `metrics_v2.json` :
+- nombre total de lignes
+- nombre de produits uniques
+- taux de complétude
+- anomalies nutritionnelles détectées
 
 ---
 
-## 5. Comparatif Before / After
+## 4. Anomalies observées
+- Valeurs nutritionnelles incohérentes
+- Produits sans marque ou sans catégorie
+- Codes-barres incomplets
 
-| Indicateur | Bronze | Silver |
-|-----------|--------|--------|
-| Nombre de lignes | Très élevé | Réduit |
-| Doublons code | Présents | Supprimés |
-| Valeurs aberrantes | Présentes | Corrigées |
-| Cohérence nutritionnelle | Faible | Améliorée |
+Ces lignes sont conservées mais marquées via `quality_issues_json`.
+
+---
+
+## 5. Comparatif Bronze / Silver
+
+| Critère | Bronze | Silver |
+|-------|--------|--------|
+| Doublons | Présents | Supprimés |
+| Valeurs aberrantes | Présentes | Neutralisées |
+| Cohérence | Faible | Améliorée |
+| Volume | Maximal | Préservé |
 
 ---
 
 ## 6. Conclusion
-Le nettoyage vise un compromis entre qualité et volume de données,
-afin de conserver une base exploitable pour l’analyse sans suppression excessive.
+Le nettoyage vise un compromis entre qualité et conservation
+des données, cohérent avec la nature collaborative et hétérogène
+d’OpenFoodFacts.

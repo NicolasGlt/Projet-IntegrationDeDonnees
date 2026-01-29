@@ -36,7 +36,7 @@ graph TD
     W3 --> M
     M --> L
     L --> U
-    U --> DB[(Database / Gold Standard)]
+    U --> DB[(Database / Gold Standard)]```
 
 ## 2. Logique de Réconciliation (Record Linkage)
 

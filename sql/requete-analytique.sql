@@ -91,8 +91,7 @@ SELECT
   COALESCE(p.product_name, 'inconnu') AS product_name,
   COALESCE(c.category_code, 'inconnu') AS category,
   f.salt_100g,
-  f.sugars_100g,
-  f.quality_issues_json
+  f.sugars_100g
 FROM fact_nutrition_snapshot f
 JOIN dim_product p ON p.product_sk = f.product_sk
 LEFT JOIN dim_category c ON c.category_sk = p.primary_category_sk

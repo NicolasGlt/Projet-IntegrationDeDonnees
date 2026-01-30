@@ -59,7 +59,8 @@ Une fois le lien établi, le système applique une règle de fusion :
 
 ## 3. Implémentation de Référence (Python)
 
-Voici le squelette technique utilisé pour l'intégration. Il repose sur le principe de Data Class pour le schéma médiateur.A. Le Modèle de Données (models.py)Pythonfrom dataclasses import dataclass
+Voici le squelette technique utilisé pour l'intégration. Il repose sur le principe de Data Class pour le schéma médiateur.
+A. Le Modèle de Données (models.py)Pythonfrom dataclasses import dataclass
 from typing import Optional
 
 @dataclass

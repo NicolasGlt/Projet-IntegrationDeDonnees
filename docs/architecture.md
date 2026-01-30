@@ -39,62 +39,130 @@ graph TD
     U --> DB[(Database / Gold Standard)] 
 ```
 
-## 2. Logique de Réconciliation (Record Linkage)
 
-L'un des défis majeurs de l'intégration est de comprendre que deux lignes provenant de sources différentes (ex: IMDb et TMDb) désignent le même film, même si l'écriture varie.
+Ce choix permet de traiter efficacement un volume supérieur à **4 millions de lignes**, tout en conservant une architecture **simple et robuste**.
 
-## A. La Similarité Textuelle (Fuzzy Matching)
-Plutôt que de chercher une égalité parfaite (qui échouerait pour "Spider-Man" vs "Spiderman"), nous utilisons la Distance de Levenshtein.
+---
 
-**Le principe** : On compte le nombre minimal de modifications (ajout, suppression ou remplacement de caractères) pour passer d'un titre à l'autre.
+## 2. Description des couches du pipeline
 
-**Le seuil de confiance** : Nous avons fixé un score de 85%. Si deux titres sont similaires à plus de 85% et partagent la même année de sortie, le système les considère comme identiques.
+### 2.1 Couche Bronze – Données brutes
 
-## B. La Stratégie d'Upsert (Mise à jour Intelligente)
-Une fois le lien établi, le système applique une règle de fusion :
+**Source :**
+- `en.openfoodfacts.org.products.csv.gz`
 
-**Si le film est inconnu** : Création d'une nouvelle fiche (Insertion).
+**Données non modifiées**, directement issues de la plateforme OpenFoodFacts.
 
-**Si le film existe déjà** : On complète les informations manquantes (ex: IMDb donne la note, TMDb donne le synopsis) sans créer de doublon (Mise à jour).
+**Problèmes connus :**
+- valeurs manquantes  
+- types incohérents  
+- doublons par code-barres  
+- champs texte très hétérogènes  
 
-## 3. Implémentation de Référence (Python)
+**Choix assumé :**  
+Aucune transformation n’est appliquée en Bronze afin de garantir la **traçabilité** et de pouvoir **rejouer le pipeline à l’identique**.
 
-Voici le squelette technique utilisé pour l'intégration. Il repose sur le principe de Data Class pour le schéma médiateur.
-A. Le Modèle de Données (models.py)Pythonfrom dataclasses import dataclass
-from typing import Optional
+---
 
-@dataclass
-class Movie:
-    title: str
-    year: int
-    director: Optional[str] = None
-    rating: Optional[float] = None
-    source: str = ""
+### 2.2 Couche Silver – Nettoyage et standardisation (PySpark)
 
-    def get_pivot_id(self):
-        """Génère une clé de blocage pour accélérer le matching"""
-        clean_title = "".join(filter(str.isalnum, self.title)).lower()
-        return f"{clean_title}_{self.year}"
-B. Le Moteur d'Intégration (engine.py)Pythonfrom rapidfuzz import fuzz
+La couche Silver est implémentée en **PySpark**, exécutée sous **Linux/WSL**, environnement nativement compatible avec Spark.
 
-class IntegrationEngine:
-    def __init__(self, threshold=85):
-        self.registry = {} # Stockage du Golden Record
-        self.threshold = threshold
+#### Rôle de PySpark
+- Lecture efficace de fichiers CSV volumineux  
+- Traitements distribués et scalables  
+- API DataFrame adaptée aux transformations de données complexes  
 
-    def upsert(self, movie: Movie):
-        p_id = movie.get_pivot_id()
-        
-        if p_id in self.registry:
-            # Logique d'Update (Enrichissement)
-            existing = self.registry[p_id]
-            if not existing.director: existing.director = movie.director
-            existing.rating = max(existing.rating or 0, movie.rating or 0)
-        else:
-            # Logique d'Insertion
-            self.registry[p_id] = movie
+#### Transformations appliquées
+- Déduplication des produits par `code` (conservation de la version la plus récente)
+- Normalisation des champs texte (minuscules, trim, nettoyage)
+- Conversion des nutriments en types numériques
+- Neutralisation des valeurs hors bornes (ex. : sucres, sel)
+- Calcul d’un score de complétude (**`completeness_score`**)
+- Génération de métriques globales (`metrics_v2.json`)
 
-## 4. Choix Techniques Justifiés
+#### Format de sortie
+La couche Silver est stockée au format **Parquet**, choisi pour :
+- sa compression efficace  
+- ses performances en lecture  
+- sa compatibilité avec Spark et les moteurs analytiques  
+
+---
+
+### 2.3 Couche Gold – DataMart MySQL
+
+La couche Gold correspond au **stockage final analytique**.
+
+#### Choix de MySQL
+- Déploiement simple via Docker  
+- SQL standard et largement maîtrisé  
+- Suffisant pour les analyses demandées dans le cadre du projet  
+- Accès facilité via phpMyAdmin  
+
+#### Modélisation du DataMart
+Le DataMart suit un **schéma étoile étendu**, composé de :
+
+**Dimensions :**
+- `dim_product`
+- `dim_brand`
+- `dim_category`
+- `dim_country`
+- `dim_time`
+
+**Table de faits :**
+- `fact_nutrition_snapshot`
+
+**Table de pont :**
+- `bridge_product_category`  
+  *(relation N–N entre produits et catégories)*
+
+Ce modèle permet :
+- des jointures efficaces  
+- une lecture analytique claire  
+- des requêtes SQL maintenables et explicites  
+
+---
+
+## 3. Stratégie de chargement des données (Gold)
+
+Le chargement de la couche Gold est réalisé via un script Python (`gold_openfoodfacts.py`) utilisant **Spark + JDBC**.
+
+**Principes retenus :**
+- Chargement par **append**
+- Pas de suppression destructive
+- Utilisation de clés techniques (`*_sk`)
+- Exploitation de la dimension temps pour l’analyse temporelle
+
+---
+
+## 4. Gestion de la qualité des données
+
+### Approche adoptée
+Le projet adopte une approche **non destructive** :
+- les anomalies sont identifiées, pas supprimées  
+- la qualité est mesurée, pas imposée  
+
+### Indicateurs utilisés
+- `completeness_score` par produit  
+- métriques globales issues de `metrics_v2.json`  
+- détection d’anomalies via seuils nutritionnels (sel, sucres)  
+
+**Remarque :**  
+Le champ `quality_issues_json` est présent dans le modèle mais ressort **NULL** dans la base MySQL actuelle.  
+Les analyses qualité reposent donc principalement sur les **scores** et **seuils calculés**.
+
+---
+
+## 5. Justification des choix technologiques
+
+- **PySpark** : traitement distribué adapté aux gros volumes  
+- **Parquet** : format colonne performant et compressé  
+- **Python** : lisibilité et rapidité de développement  
+- **MySQL** : suffisant pour l’analytique SQL demandée  
+- **Docker** : reproductibilité de l’environnement  
+- **WSL / Linux** : compatibilité native avec Spark  
+
+---
 
 Voici pourquoi nous avons sélectionné ces outils pour ce TP :
 | Composant | Pourquoi ce choix ? |	Bénéfice pour le TP |
@@ -105,3 +173,24 @@ Voici pourquoi nous avons sélectionné ces outils pour ce TP :
 | Blocking (Année) | Segmentation des comparaisons par année de production. | Optimise le temps de calcul en évitant de comparer des films qui ne peuvent pas être identiques. |
 | Architecture Mediator | Centralisation de la logique de fusion dans un moteur unique. |	Facilite l'ajout de nouvelles sources de données sans modifier le code existant. |
 
+
+---
+
+## 6. Limites et perspectives
+
+### Limites
+- Forte hétérogénéité des catégories OpenFoodFacts  
+- Qualité variable selon les marques  
+- Moteur SQL non spécialisé OLAP  
+
+### Perspectives
+- Enrichissement de la taxonomie des catégories  
+- Historisation avancée (SCD Type 2)  
+- Migration vers un moteur analytique orienté colonne  
+
+---
+
+## 7. Conclusion
+
+L’architecture mise en place est cohérente avec les objectifs du projet et les contraintes du jeu de données OpenFoodFacts.  
+Elle permet une **ingestion robuste**, un **nettoyage contrôlé** et une **exploitation analytique claire** via un DataMart structuré.

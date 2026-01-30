@@ -113,3 +113,17 @@ WHERE f.completeness_score IS NOT NULL
 GROUP BY t.year, t.iso_week
 HAVING COUNT(*) >= 20
 ORDER BY t.year, t.iso_week;
+
+-- 7) BONUS QUALITÉ — Catégories les moins complètes (avg completeness_score)
+SELECT
+  COALESCE(c.category_code, 'inconnu') AS category,
+  ROUND(AVG(f.completeness_score), 3) AS avg_completeness,
+  COUNT(*) AS n
+FROM fact_nutrition_snapshot f
+JOIN dim_product p ON p.product_sk = f.product_sk
+LEFT JOIN dim_category c ON c.category_sk = p.primary_category_sk
+WHERE f.completeness_score IS NOT NULL
+GROUP BY COALESCE(c.category_code, 'inconnu')
+HAVING COUNT(*) >= 1000
+ORDER BY avg_completeness ASC, n DESC
+LIMIT 20;

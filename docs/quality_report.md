@@ -5,11 +5,11 @@ Décrire les règles de qualité et les contrôles appliqués sur OpenFoodFacts 
 - une couche **Silver** propre et standardisée (Parquet),
 - une couche **Gold** structurée (DataMart MySQL) exploitable analytiquement.
 
-Le choix principal du projet est une approche **non destructive** : neutraliser/qualifier les anomalies plutôt que supprimer massivement des lignes (afin de conserver la représentativité des données).
+Le projet adopte une approche **non destructive** : neutraliser/qualifier les anomalies plutôt que supprimer massivement des lignes, afin de conserver un volume représentatif.
 
 ---
 
-## 2. Périmètre et contexte
+## 2. Source et pipeline
 - **Source** : OpenFoodFacts (`en.openfoodfacts.org.products.csv.gz`)
 - **Pipeline** : Bronze → Silver → Gold
 - **Technos** : PySpark + Parquet (Silver), MySQL (Gold), Docker, WSL
@@ -19,23 +19,16 @@ Le choix principal du projet est une approche **non destructive** : neutraliser/
 ## 3. Règles de qualité appliquées (couche Silver)
 
 ### 3.1 Unicité / doublons
-**Règle :** un code-barres (`code`) correspond à un produit courant.  
-**Problème :** OpenFoodFacts contient plusieurs versions d’un même produit.  
-**Traitement :**
-- déduplication par `code`,
-- conservation de l’enregistrement le plus récent via `last_modified_t`.
+- **Règle** : un code-barres (`code`) correspond à un produit courant.
+- **Traitement** : déduplication par `code` en conservant la version la plus récente (`last_modified_t`).
 
 ### 3.2 Normalisation des champs textuels
-**Traitements :**
-- trim / normalisation espaces,
-- mise en minuscules,
-- suppression/normalisation des valeurs bruitées (ex. `unknown`, `none`, `0`, etc.),
-- sélection d’un nom produit prioritaire :
+- mise en minuscules, nettoyage des valeurs bruitées (`unknown`, `none`, `0`, etc.)
+- normalisation ASCII
+- sélection du nom produit prioritaire :
   1) `product_name_fr`, sinon 2) `product_name`, sinon 3) `product_name_en`.
 
 ### 3.3 Contrôles de bornes (valeurs nutritionnelles)
-Pour éviter des valeurs impossibles ou incohérentes, des bornes sont appliquées :
-
 | Champ | Intervalle autorisé |
 |------|---------------------|
 | sugars_100g | 0 – 100 |
@@ -43,26 +36,22 @@ Pour éviter des valeurs impossibles ou incohérentes, des bornes sont appliqué
 | fat_100g | 0 – 100 |
 | proteins_100g | 0 – 100 |
 
-**Traitement :** valeurs hors bornes → `NULL` (neutralisation).
+**Traitement** : valeurs hors bornes → `NULL` (neutralisation).
 
 ### 3.4 Cohérence sel / sodium
-Relation utilisée :
-- `salt_100g ≈ sodium_100g × 2.5`
+- relation : `salt_100g ≈ sodium_100g × 2.5`
+- recalcul si l’un des deux champs est manquant.
 
-**Traitement :**
-- si `salt_100g` existe et `sodium_100g` manque → calcul de `sodium_100g`,
-- si `sodium_100g` existe et `salt_100g` manque → calcul de `salt_100g`.
-
-### 3.5 Indicateur de complétude
-Un **score de complétude** `completeness_score` (entre 0 et 1) est calculé pour évaluer
-la présence des champs essentiels (nom, marque, nutriments principaux).
-
-**Choix assumé :** pas de filtre éliminatoire strict sur ce score, afin d’éviter une perte excessive de volume.
+### 3.5 Mesure de complétude
+- Calcul d’un `completeness_score` ∈ [0;1] à partir des champs essentiels (nom, marque, nutriments principaux).
+- **Choix assumé** : pas de suppression agressive basée sur ce score, pour éviter de descendre sous un seuil de volumétrie exploitable.
 
 ### 3.6 Traçabilité des anomalies
-Un champ `quality_issues_json` est construit pour conserver une trace des problèmes détectés
-(ex. bornes, champs manquants, incohérences).  
-Cela permet d’analyser la qualité **a posteriori** dans le DataMart Gold.
+- Un champ `quality_issues_json` existe dans le modèle Gold pour tracer des anomalies.
+- **Remarque** : selon le chargement, ce champ peut être `NULL` dans la base MySQL.
+- Les analyses qualité principales reposent donc sur :
+  - les métriques globales `metrics_v2.json`
+  - et le champ `completeness_score`.
 
 ---
 
@@ -75,44 +64,38 @@ D’après `metrics_v2.json` :
 - **Lignes avec sugars_100g** : 2 930 506 (~68,2%)
 - **Score moyen de complétude** : 0,7126 (≈ 0,713)
 
-**Interprétation :**
-- Le code-barres est quasi systématiquement présent (excellent pour la déduplication).
-- La complétude nutritionnelle est variable (normal pour OpenFoodFacts), mais le score moyen (~0,71)
-indique une base globalement exploitable.
-- Conserver ces lignes (plutôt que les supprimer) garantit des analyses plus représentatives.
+**Interprétation**
+- Le code-barres est systématiquement présent, facilitant la déduplication.
+- La complétude nutritionnelle est variable (attendue sur OpenFoodFacts), mais le score moyen (~0,71) indique une base globalement exploitable.
+- Conserver les lignes partiellement renseignées garantit une meilleure représentativité pour l’analyse.
 
 ---
 
 ## 5. Contrôle qualité dans le Gold (DataMart MySQL)
+Le DataMart permet d’exploiter la qualité via :
+- `completeness_score` dans `fact_nutrition_snapshot`
+- des analyses SQL dédiées (ex. catégories les moins complètes)
 
-Dans la couche Gold, la qualité est exploitée via :
-- `completeness_score`
-- `quality_issues_json`
-
-Les requêtes analytiques incluent une analyse dédiée, par exemple :
-- **BONUS** : catégories présentant le plus d’anomalies (`quality_issues_json` non vide),
-afin d’identifier des zones “à risque” en qualité de données.
+Une requête BONUS qualité est ajoutée dans `requete-analytique.sql` :
+- **Top catégories les moins complètes** (moyenne de `completeness_score`), afin d’identifier des zones “à risque” en qualité de données.
 
 ---
 
-## 6. Before / After (Bronze vs Silver)
+## 6. Comparatif Bronze / Silver
 
 | Indicateur | Bronze | Silver |
 |-----------|--------|--------|
-| Doublons | Présents | Déduplication par `code` |
-| Valeurs aberrantes | Présentes | Neutralisées (`NULL`) |
-| Traçabilité qualité | Faible | `quality_issues_json` + score |
+| Doublons | présents | déduplication par `code` |
+| Valeurs aberrantes | présentes | neutralisées (`NULL`) |
+| Standardisation texte | faible | améliorée |
 | Volume | maximal | préservé (nettoyage non destructif) |
 
 ---
 
 ## 7. Conclusion
-La stratégie de qualité choisie est adaptée à OpenFoodFacts :
-- source collaborative, hétérogène, incomplète,
-- objectif analytique nécessitant volume + représentativité.
+La stratégie de qualité est adaptée à une source collaborative et hétérogène :
+- nettoyage ciblé (bornes, cohérences, standardisation),
+- conservation du volume,
+- mesure explicite de la qualité (`completeness_score` + métriques globales).
 
-Le pipeline privilégie :
-- la standardisation,
-- la traçabilité des anomalies,
-- la conservation du volume,
-plutôt qu’un filtrage trop agressif qui éliminerait une part importante des données.
+Le résultat est un DataMart exploitable et cohérent pour l’analyse nutritionnelle.

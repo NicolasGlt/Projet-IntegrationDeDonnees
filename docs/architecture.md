@@ -1,4 +1,4 @@
-# 🏗️ Architecture & Implémentation du Pipeline d'Intégration
+# Architecture & Implémentation du Pipeline d'Intégration
 
 Ce document décrit l'architecture logicielle et la logique de réconciliation des données du projet. L'objectif est de transformer des sources disparates en un **Golden Record** (enregistrement de référence).
 

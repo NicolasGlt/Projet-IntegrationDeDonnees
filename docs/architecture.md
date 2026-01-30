@@ -43,19 +43,19 @@ graph TD
 
 L'un des défis majeurs de l'intégration est de comprendre que deux lignes provenant de sources différentes (ex: IMDb et TMDb) désignent le même film, même si l'écriture varie.
 
-A. La Similarité Textuelle (Fuzzy Matching)
+## A. La Similarité Textuelle (Fuzzy Matching)
 Plutôt que de chercher une égalité parfaite (qui échouerait pour "Spider-Man" vs "Spiderman"), nous utilisons la Distance de Levenshtein.
 
-Le principe : On compte le nombre minimal de modifications (ajout, suppression ou remplacement de caractères) pour passer d'un titre à l'autre.
+    1- Le principe : On compte le nombre minimal de modifications (ajout, suppression ou remplacement de caractères) pour passer d'un titre à l'autre.
 
-Le seuil de confiance : Nous avons fixé un score de 85%. Si deux titres sont similaires à plus de 85% et partagent la même année de sortie, le système les considère comme identiques.
+    2- Le seuil de confiance : Nous avons fixé un score de 85%. Si deux titres sont similaires à plus de 85% et partagent la même année de sortie, le système les considère comme identiques.
 
-B. La Stratégie d'Upsert (Mise à jour Intelligente)
+## B. La Stratégie d'Upsert (Mise à jour Intelligente)
 Une fois le lien établi, le système applique une règle de fusion :
 
-Si le film est inconnu : Création d'une nouvelle fiche (Insertion).
+    1- Si le film est inconnu : Création d'une nouvelle fiche (Insertion).
 
-Si le film existe déjà : On complète les informations manquantes (ex: IMDb donne la note, TMDb donne le synopsis) sans créer de doublon (Mise à jour).
+    2- Si le film existe déjà : On complète les informations manquantes (ex: IMDb donne la note, TMDb donne le synopsis) sans créer de doublon (Mise à jour).
 
 ## 3. Implémentation de Référence (Python)
 

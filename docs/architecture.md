@@ -41,13 +41,21 @@ graph TD
 
 ## 2. Logique de Réconciliation (Record Linkage)
 
-Pour lier deux films sans identifiant commun, nous appliquons une mesure de similarité textuelle sur le titre, pondérée par l'année de sortie.Métrique de SimilaritéNous utilisons la distance de Levenshtein pour gérer les fautes de frappe ou les variations de titres :$$dist(s_1, s_2) = \min(insertions, deletions, substitutions)$$Algorithme d'Upsert (Flow)Extrait de codeflowchart TD
-    A[Nouvelle donnée entrante] --> B{Calcul du Hash ID}
-    B --> C{ID existe déjà ?}
-    C -- Oui --> D[Vérification de similarité]
-    C -- Non --> E[INSERT : Créer nouvelle entrée]
-    D -- Score > 85% --> F[UPDATE : Fusion des données]
-    D -- Score < 85% --> G[LOG : Conflit potentiel]
+L'un des défis majeurs de l'intégration est de comprendre que deux lignes provenant de sources différentes (ex: IMDb et TMDb) désignent le même film, même si l'écriture varie.
+
+A. La Similarité Textuelle (Fuzzy Matching)
+Plutôt que de chercher une égalité parfaite (qui échouerait pour "Spider-Man" vs "Spiderman"), nous utilisons la Distance de Levenshtein.
+
+Le principe : On compte le nombre minimal de modifications (ajout, suppression ou remplacement de caractères) pour passer d'un titre à l'autre.
+
+Le seuil de confiance : Nous avons fixé un score de 85%. Si deux titres sont similaires à plus de 85% et partagent la même année de sortie, le système les considère comme identiques.
+
+B. La Stratégie d'Upsert (Mise à jour Intelligente)
+Une fois le lien établi, le système applique une règle de fusion :
+
+Si le film est inconnu : Création d'une nouvelle fiche (Insertion).
+
+Si le film existe déjà : On complète les informations manquantes (ex: IMDb donne la note, TMDb donne le synopsis) sans créer de doublon (Mise à jour).
 
 ## 3. Implémentation de Référence (Python)
 
@@ -87,5 +95,11 @@ class IntegrationEngine:
 
 ## 4. Choix Techniques Justifiés
 
-ChoixJustificationPython / PandasFlexibilité totale pour le nettoyage de chaînes de caractères complexes.Fuzzy MatchingIndispensable pour réconcilier "The Matrix" et "Matrix, The".Blocking (Hash ID)Réduit la complexité algorithmique de $O(n^2)$ à $O(n)$ pour les gros volumes.JSON/CSV ExportFormat pivot universel pour la consommation par des outils tiers (BI, App Web).
+Voici pourquoi nous avons sélectionné ces outils pour ce TP :
+Composant	Pourquoi ce choix ?	Bénéfice pour le TP
+Python & Pandas	Utilisation de bibliothèques standards pour le traitement de données massives.	Permet de manipuler les fichiers CSV, JSON et XML avec une grande flexibilité.
+Normalisation	Nettoyage systématique (minuscules, retrait des caractères spéciaux et accents).	Garantit que "L'HIVER" et "l'hiver" soient reconnus comme une seule et même entité.
+Fuzzy Matching	Utilisation de la distance de Levenshtein (algorithme de calcul de similarité).	Permet de lier des données malgré des fautes de frappe ou des variations de titres.
+Blocking (Année)	Segmentation des comparaisons par année de production.	Optimise le temps de calcul en évitant de comparer des films qui ne peuvent pas être identiques.
+Architecture Mediator	Centralisation de la logique de fusion dans un moteur unique.	Facilite l'ajout de nouvelles sources de données sans modifier le code existant.
 

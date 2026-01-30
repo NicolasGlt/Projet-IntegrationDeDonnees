@@ -96,10 +96,11 @@ class IntegrationEngine:
 ## 4. Choix Techniques Justifiés
 
 Voici pourquoi nous avons sélectionné ces outils pour ce TP :
-Composant	Pourquoi ce choix ?	Bénéfice pour le TP
-Python & Pandas	Utilisation de bibliothèques standards pour le traitement de données massives.	Permet de manipuler les fichiers CSV, JSON et XML avec une grande flexibilité.
-Normalisation	Nettoyage systématique (minuscules, retrait des caractères spéciaux et accents).	Garantit que "L'HIVER" et "l'hiver" soient reconnus comme une seule et même entité.
-Fuzzy Matching	Utilisation de la distance de Levenshtein (algorithme de calcul de similarité).	Permet de lier des données malgré des fautes de frappe ou des variations de titres.
-Blocking (Année)	Segmentation des comparaisons par année de production.	Optimise le temps de calcul en évitant de comparer des films qui ne peuvent pas être identiques.
-Architecture Mediator	Centralisation de la logique de fusion dans un moteur unique.	Facilite l'ajout de nouvelles sources de données sans modifier le code existant.
+| Composant | Pourquoi ce choix ? |	Bénéfice pour le TP |
+| :--- | :--- | :--- |
+| Python & Pandas |	Utilisation de bibliothèques standards pour le traitement de données massives | Permet de manipuler les fichiers CSV, JSON et XML avec une grande flexibilité. |
+| Normalisation | Nettoyage systématique (minuscules, retrait des caractères spéciaux et accents). | Garantit que "L'HIVER" et "l'hiver" soient reconnus comme une seule et même entité. |
+| Fuzzy Matching | Utilisation de la distance de Levenshtein (algorithme de calcul de similarité). | Permet de lier des données malgré des fautes de frappe ou des variations de titres. |
+| Blocking (Année) | Segmentation des comparaisons par année de production. | Optimise le temps de calcul en évitant de comparer des films qui ne peuvent pas être identiques. |
+| Architecture Mediator | Centralisation de la logique de fusion dans un moteur unique. |	Facilite l'ajout de nouvelles sources de données sans modifier le code existant. |
 
